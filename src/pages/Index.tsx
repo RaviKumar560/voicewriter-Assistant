@@ -5,6 +5,7 @@ import { useRealTimeSharing } from '@/hooks/useRealTimeSharing';
 import MicrophoneButton from '@/components/MicrophoneButton';
 import TranscriptionDisplay from '@/components/TranscriptionDisplay';
 import VoiceVisualizer from '@/components/VoiceVisualizer';
+import ConnectionInterface from '@/components/ConnectionInterface';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,9 +15,13 @@ const Index = () => {
   const { 
     userId, 
     userName, 
+    sessionId,
     connectedUsers, 
     updateTranscription, 
-    updateRecordingStatus 
+    updateRecordingStatus,
+    createSession,
+    joinSession,
+    updateUserName
   } = useRealTimeSharing();
 
   // Update other users when recording status changes
@@ -56,20 +61,23 @@ const Index = () => {
           </p>
         </header>
 
+        <ConnectionInterface
+          sessionId={sessionId}
+          userName={userName}
+          connectedUsers={connectedUsers}
+          onCreateSession={createSession}
+          onJoinSession={joinSession}
+          onChangeUserName={updateUserName}
+        />
+
         <div className="w-full space-y-8">
-          <div className="connected-users w-full flex flex-wrap gap-2 justify-center mb-4">
-            {Object.entries(connectedUsers).map(([uid, userData]) => (
-              <div 
-                key={uid}
-                className={`text-xs px-3 py-1 rounded-full ${uid === userId 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-muted text-muted-foreground'}`}
-              >
-                {userData.name}
-                {userData.isRecording && " 🎤"}
+          {sessionId && (
+            <div className="w-full flex flex-wrap gap-2 justify-center mb-4">
+              <div className="text-xs px-3 py-1 rounded-full bg-primary text-primary-foreground">
+                Connected to session: {sessionId.substring(0, 6)}...
               </div>
-            ))}
-          </div>
+            </div>
+          )}
 
           <TranscriptionDisplay 
             text={text} 
@@ -106,7 +114,7 @@ const Index = () => {
         </div>
         
         <footer className="w-full max-w-xl mx-auto bg-muted/40 rounded-lg p-4 text-center text-sm text-muted-foreground">
-          <p className="font-medium mb-1">📢 Connected users can see your transcriptions in real-time</p>
+          <p className="font-medium mb-1">📢 Share your session ID to collaborate in real-time</p>
           <p>Click the microphone to speak, or edit text directly in the textbox</p>
         </footer>
       </div>

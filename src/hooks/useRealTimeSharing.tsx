@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 // In a real application, this would be replaced with an actual backend service
@@ -19,6 +19,10 @@ export function useRealTimeSharing() {
   const [sessionId, setSessionId] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [connectedUsers, setConnectedUsers] = useState<{[key: string]: {name: string, isRecording: boolean}}>({});
+  
+  // Use refs to prevent infinite updates in useEffects
+  const latestMessageRef = useRef<string>('');
+  const isRecordingRef = useRef<boolean>(false);
   
   // Mock creating a new session
   const createSession = useCallback(() => {
@@ -76,6 +80,10 @@ export function useRealTimeSharing() {
   const broadcastMessage = useCallback((text: string, isRecording: boolean) => {
     if (!sessionId) return;
     
+    // Update refs to prevent infinite loop
+    latestMessageRef.current = text;
+    isRecordingRef.current = isRecording;
+    
     const newMessage: Message = {
       userId,
       userName,
@@ -95,12 +103,12 @@ export function useRealTimeSharing() {
   }, [userId, userName, sessionId]);
   
   const updateTranscription = useCallback((text: string) => {
-    if (!sessionId) return;
-    broadcastMessage(text, false);
+    if (!sessionId || text === latestMessageRef.current) return;
+    broadcastMessage(text, isRecordingRef.current);
   }, [broadcastMessage, sessionId]);
   
   const updateRecordingStatus = useCallback((isRecording: boolean) => {
-    if (!sessionId) return;
+    if (!sessionId || isRecording === isRecordingRef.current) return;
     
     // Get the latest message text or empty string
     const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;

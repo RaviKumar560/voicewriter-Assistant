@@ -24,16 +24,20 @@ const Index = () => {
     updateUserName
   } = useRealTimeSharing();
 
-  // Update other users when recording status changes
+  // Update other users when recording status changes - do this immediately
   useEffect(() => {
     updateRecordingStatus(isRecording);
   }, [isRecording, updateRecordingStatus]);
 
-  // Update transcription when text changes
+  // Update transcription when text changes - do this with minimal delay
   useEffect(() => {
-    if (text) {
-      updateTranscription(text);
-    }
+    const updateTimer = setTimeout(() => {
+      if (text) {
+        updateTranscription(text);
+      }
+    }, 100); // small timeout to batch updates and prevent too many broadcasts
+    
+    return () => clearTimeout(updateTimer);
   }, [text, updateTranscription]);
 
   const handleReset = () => {
@@ -43,6 +47,7 @@ const Index = () => {
 
   const handleTextChange = (newText: string) => {
     setText(newText);
+    // Immediate update for text changes from input
     updateTranscription(newText);
   };
 

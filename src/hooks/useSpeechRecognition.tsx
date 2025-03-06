@@ -55,9 +55,11 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     
     // Events
     recognitionInstance.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map(result => result[0].transcript)
-        .join('');
+      // Get the last result to immediately show the current speech
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
       
       setText(transcript);
     };

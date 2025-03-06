@@ -8,11 +8,13 @@ import { toast } from 'sonner';
 interface TranscriptionDisplayProps {
   text: string;
   isRecording: boolean;
+  onTextChange?: (newText: string) => void;
 }
 
 const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({ 
   text, 
-  isRecording 
+  isRecording,
+  onTextChange
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = React.useState(false);
@@ -38,6 +40,12 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
       setCopied(false);
     }, 2000);
   };
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (onTextChange) {
+      onTextChange(e.target.value);
+    }
+  };
   
   return (
     <div className="relative w-full animate-fade-up">
@@ -47,14 +55,16 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
             ref={containerRef}
             className="min-h-[200px] max-h-[400px] overflow-y-auto mb-2"
           >
-            {text ? (
-              <p className="text-lg leading-relaxed whitespace-pre-wrap">{text}</p>
+            {text || isRecording ? (
+              <textarea
+                className="w-full min-h-[160px] bg-transparent resize-none text-lg leading-relaxed focus:outline-none"
+                value={text}
+                onChange={handleTextChange}
+                placeholder={isRecording ? "Listening..." : "Edit your text here..."}
+              />
             ) : (
               <p className="text-muted-foreground text-center italic pt-16">
-                {isRecording 
-                  ? "Listening..." 
-                  : "Click the microphone to start speaking"
-                }
+                Click the microphone to start speaking
               </p>
             )}
           </div>

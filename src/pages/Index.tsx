@@ -1,18 +1,44 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useRealTimeSharing } from '@/hooks/useRealTimeSharing';
 import MicrophoneButton from '@/components/MicrophoneButton';
 import TranscriptionDisplay from '@/components/TranscriptionDisplay';
 import VoiceVisualizer from '@/components/VoiceVisualizer';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/card';
 
 const Index = () => {
-  const { text, isRecording, toggleRecording, resetText } = useSpeechRecognition();
+  const { text, isRecording, toggleRecording, resetText, setText } = useSpeechRecognition();
+  const { 
+    userId, 
+    userName, 
+    connectedUsers, 
+    updateTranscription, 
+    updateRecordingStatus 
+  } = useRealTimeSharing();
+
+  // Update other users when recording status changes
+  useEffect(() => {
+    updateRecordingStatus(isRecording);
+  }, [isRecording, updateRecordingStatus]);
+
+  // Update transcription when text changes
+  useEffect(() => {
+    if (text) {
+      updateTranscription(text);
+    }
+  }, [text, updateTranscription]);
 
   const handleReset = () => {
     resetText();
     toast.info("Transcription cleared");
+  };
+
+  const handleTextChange = (newText: string) => {
+    setText(newText);
+    updateTranscription(newText);
   };
 
   return (
@@ -31,10 +57,32 @@ const Index = () => {
         </header>
 
         <div className="w-full space-y-8">
-          <TranscriptionDisplay text={text} isRecording={isRecording} />
+          <div className="connected-users w-full flex flex-wrap gap-2 justify-center mb-4">
+            {Object.entries(connectedUsers).map(([uid, userData]) => (
+              <div 
+                key={uid}
+                className={`text-xs px-3 py-1 rounded-full ${uid === userId 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-muted text-muted-foreground'}`}
+              >
+                {userData.name}
+                {userData.isRecording && " 🎤"}
+              </div>
+            ))}
+          </div>
+
+          <TranscriptionDisplay 
+            text={text} 
+            isRecording={isRecording} 
+            onTextChange={handleTextChange}
+          />
           
           <div className="flex flex-col items-center space-y-6">
-            <VoiceVisualizer isRecording={isRecording} />
+            <VoiceVisualizer 
+              isRecording={isRecording}
+              userId={userId}
+              userName={userName}
+            />
             
             <div className="space-y-6">
               <MicrophoneButton 
@@ -57,10 +105,9 @@ const Index = () => {
           </div>
         </div>
         
-        <footer className="text-center text-sm text-muted-foreground mt-10">
-          <p>
-            Tap the microphone and start speaking
-          </p>
+        <footer className="w-full max-w-xl mx-auto bg-muted/40 rounded-lg p-4 text-center text-sm text-muted-foreground">
+          <p className="font-medium mb-1">📢 Connected users can see your transcriptions in real-time</p>
+          <p>Click the microphone to speak, or edit text directly in the textbox</p>
         </footer>
       </div>
     </div>

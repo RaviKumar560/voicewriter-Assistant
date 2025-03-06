@@ -9,6 +9,7 @@ interface SpeechRecognitionHook {
   stopRecording: () => void;
   toggleRecording: () => void;
   resetText: () => void;
+  setText: (newText: string) => void;
 }
 
 // Create a type for the SpeechRecognition object since TypeScript doesn't have built-in types for it
@@ -127,12 +128,17 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     setText('');
   }, []);
 
+  const updateText = useCallback((newText: string) => {
+    setText(newText);
+  }, []);
+
   return {
     text,
     isRecording,
     startRecording,
     stopRecording,
     toggleRecording,
-    resetText
+    resetText,
+    setText: updateText
   };
 }

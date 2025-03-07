@@ -3,16 +3,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from "@/integrations/supabase/client";
 
-// Mock implementation - in a real app, this would connect to a backend
+// Message type for real-time communication
 type Message = {
   userId: string;
   userName: string;
   text: string;
   isRecording: boolean;
   timestamp: number;
+  messageId?: string; // Unique ID for deduplication
 };
 
-// Mock implementation - in a real app, this would connect to a backend
 export function useRealTimeSharing() {
   const [userId] = useState(`user-${Math.floor(Math.random() * 10000)}`);
   const [userName, setUserName] = useState(`User ${Math.floor(Math.random() * 100)}`);
@@ -24,6 +24,7 @@ export function useRealTimeSharing() {
   const latestMessageRef = useRef<string>('');
   const isRecordingRef = useRef<boolean>(false);
   const sessionChannelRef = useRef<any>(null);
+  const processedMessageIds = useRef<Set<string>>(new Set());
 
   // Function to set up real-time channel communication
   const setupRealtimeChannel = useCallback((id: string) => {
@@ -31,6 +32,9 @@ export function useRealTimeSharing() {
     if (sessionChannelRef.current) {
       supabase.removeChannel(sessionChannelRef.current);
     }
+
+    // Reset processed message IDs when creating a new channel
+    processedMessageIds.current.clear();
 
     // Create a new channel for this session
     const channel = supabase.channel(`session:${id}`, {
@@ -46,17 +50,21 @@ export function useRealTimeSharing() {
       .on('broadcast', { event: 'message' }, (payload) => {
         const newMessage = payload.payload as Message;
         
+        // Generate a messageId if one doesn't exist
+        if (!newMessage.messageId) {
+          newMessage.messageId = `${newMessage.userId}-${newMessage.timestamp}`;
+        }
+        
+        // Skip if we've already processed this message
+        if (processedMessageIds.current.has(newMessage.messageId)) {
+          return;
+        }
+        
+        // Mark as processed
+        processedMessageIds.current.add(newMessage.messageId);
+        
         // Update messages state
-        setMessages(prev => {
-          // Check if message already exists to prevent duplicates
-          const exists = prev.some(msg => 
-            msg.userId === newMessage.userId && 
-            msg.timestamp === newMessage.timestamp
-          );
-          
-          if (exists) return prev;
-          return [...prev, newMessage];
-        });
+        setMessages(prev => [...prev, newMessage]);
         
         // Update connected users
         setConnectedUsers(prev => ({
@@ -213,17 +221,27 @@ export function useRealTimeSharing() {
   const broadcastMessage = useCallback((text: string, isRecording: boolean) => {
     if (!sessionId || !sessionChannelRef.current) return;
     
+    // Only broadcast if text or recording status changed
+    if (text === latestMessageRef.current && isRecording === isRecordingRef.current) {
+      return;
+    }
+    
     // Update refs to prevent infinite loop
     latestMessageRef.current = text;
     isRecordingRef.current = isRecording;
     
+    const messageId = `${userId}-${Date.now()}`;
     const newMessage: Message = {
       userId,
       userName,
       text,
       isRecording,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      messageId
     };
+    
+    // Add to processed list before sending to prevent duplicates
+    processedMessageIds.current.add(messageId);
     
     // Send the message via the real-time channel
     sessionChannelRef.current.send({

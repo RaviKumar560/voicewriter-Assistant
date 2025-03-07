@@ -40,6 +40,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   const [isRecording, setIsRecording] = useState(false);
   const textTimeoutRef = useRef<number | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const lastTranscriptRef = useRef<string>('');
 
   // Initialize speech recognition on component mount
   useEffect(() => {
@@ -77,9 +78,22 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
         setText((prevText) => {
           // For final results, append with space
           if (event.results[event.resultIndex].isFinal) {
+            // Prevent duplicate transcriptions by checking if this is the same as the last final transcript
+            if (transcript.trim() === lastTranscriptRef.current.trim()) {
+              return prevText;
+            }
+            
+            // Update the last transcript reference
+            lastTranscriptRef.current = transcript;
+            
             return prevText ? `${prevText} ${transcript}` : transcript;
           }
-          // For interim results, replace the last part
+          
+          // For interim results, only update if it's substantially different
+          if (transcript.trim() === lastTranscriptRef.current.trim()) {
+            return prevText;
+          }
+          
           return transcript;
         });
       }
@@ -179,6 +193,9 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       
       setTimeout(() => {
         if (recognitionRef.current) {
+          // Reset the last transcript when starting a new recording session
+          lastTranscriptRef.current = '';
+          
           recognitionRef.current.start();
           setIsRecording(true);
           
@@ -226,6 +243,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
 
   const resetText = useCallback(() => {
     setText('');
+    lastTranscriptRef.current = '';
     
     // Clear any timeout
     if (textTimeoutRef.current !== null) {

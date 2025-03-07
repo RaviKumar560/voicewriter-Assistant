@@ -8,6 +8,7 @@ import VoiceVisualizer from '@/components/VoiceVisualizer';
 import ConnectionInterface from '@/components/ConnectionInterface';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { LogOut } from 'lucide-react';
 
 const Index = () => {
   const { text, isRecording, toggleRecording, resetText, setText } = useSpeechRecognition();
@@ -21,6 +22,7 @@ const Index = () => {
     updateRecordingStatus,
     createSession,
     joinSession,
+    disconnectSession,
     updateUserName
   } = useRealTimeSharing();
 
@@ -61,6 +63,10 @@ const Index = () => {
     updateTranscription(newText);
   };
 
+  const handleDisconnect = () => {
+    disconnectSession();
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
       <div className="w-full max-w-3xl mx-auto flex flex-col items-center space-y-8 animate-fade-in">
@@ -97,6 +103,16 @@ const Index = () => {
                   {Object.keys(connectedUsers).length} devices connected
                 </div>
               )}
+              
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="flex items-center gap-1 text-xs h-6 px-3 py-0 rounded-full"
+                onClick={handleDisconnect}
+              >
+                <LogOut className="w-3 h-3" />
+                Disconnect
+              </Button>
             </div>
           )}
 

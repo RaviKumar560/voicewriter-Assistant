@@ -169,6 +169,31 @@ export function useRealTimeSharing() {
     toast.success(`Joined session: ${id}`);
   }, [userId, userName, setupRealtimeChannel]);
   
+  // Disconnect from a session
+  const disconnectSession = useCallback(() => {
+    if (!sessionId || !sessionChannelRef.current) {
+      return;
+    }
+    
+    // Announce that the user has left before disconnecting
+    sessionChannelRef.current.send({
+      type: 'broadcast',
+      event: 'user_left',
+      payload: { userId, userName }
+    }).then(() => {
+      // Then remove the channel
+      supabase.removeChannel(sessionChannelRef.current);
+      sessionChannelRef.current = null;
+      
+      // Clear session data
+      setSessionId('');
+      setMessages([]);
+      setConnectedUsers({});
+      
+      toast.info(`Disconnected from session`);
+    });
+  }, [sessionId, userId, userName]);
+  
   // Update user name
   const updateUserName = useCallback((newName: string) => {
     if (!newName.trim()) return;
@@ -257,6 +282,7 @@ export function useRealTimeSharing() {
     getLatestUserMessage,
     createSession,
     joinSession,
+    disconnectSession,
     updateUserName
   };
 }

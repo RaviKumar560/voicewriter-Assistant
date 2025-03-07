@@ -1,7 +1,7 @@
+
 import React, { useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clipboard, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface TranscriptionDisplayProps {
@@ -18,6 +18,7 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = React.useState(false);
   const prevTextRef = useRef<string>('');
+  const textChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Auto-scroll to the bottom of the container
   useEffect(() => {
@@ -49,13 +50,21 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     
-    // Only call onTextChange if the text has actually changed
-    if (onTextChange && newText !== prevTextRef.current) {
-      onTextChange(newText);
-      prevTextRef.current = newText;
+    // Clear any existing timeout
+    if (textChangeTimeoutRef.current) {
+      clearTimeout(textChangeTimeoutRef.current);
     }
+    
+    // Debounce text changes to prevent too frequent updates
+    textChangeTimeoutRef.current = setTimeout(() => {
+      // Only call onTextChange if the text has actually changed
+      if (onTextChange && newText !== prevTextRef.current) {
+        onTextChange(newText);
+        prevTextRef.current = newText;
+      }
+    }, 300);
   };
-  
+
   return (
     <div className="relative w-full animate-fade-up">
       <Card className="border shadow-sm bg-card/50">
@@ -69,7 +78,7 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
                 className="w-full min-h-[160px] bg-transparent resize-none text-lg leading-relaxed focus:outline-none"
                 value={text}
                 onChange={handleTextChange}
-                placeholder={isRecording ? "Listening..." : "Edit your text here..."}
+                placeholder={isRecording ? "Listening to your voice..." : "Edit your text here..."}
               />
             ) : (
               <p className="text-muted-foreground text-center italic pt-16">

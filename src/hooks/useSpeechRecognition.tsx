@@ -40,6 +40,8 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   const textTimeoutRef = useRef<number | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const lastTranscriptRef = useRef<string>('');
+  const transcriptDebounceRef = useRef<number | null>(null);
+  const confidenceThreshold = 0.65; // Minimum confidence level to accept transcription
 
   // Initialize speech recognition on component mount
   useEffect(() => {
@@ -59,49 +61,68 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     
     // Events
     recognitionInstance.onresult = (event) => {
-      // Process the result immediately for responsive feedback
-      let transcript = '';
-      
-      // Get latest result
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          transcript += event.results[i][0].transcript;
-        } else {
-          // For interim results, we still want to show something
-          transcript += event.results[i][0].transcript;
-        }
+      if (transcriptDebounceRef.current !== null) {
+        window.clearTimeout(transcriptDebounceRef.current);
       }
       
-      // Update text state if we have content
-      if (transcript.trim()) {
-        setText((prevText) => {
-          // For final results, append with space
-          if (event.results[event.resultIndex].isFinal) {
-            // Prevent duplicate transcriptions by checking if this is the same as the last final transcript
-            if (transcript.trim() === lastTranscriptRef.current.trim()) {
-              return prevText;
+      transcriptDebounceRef.current = window.setTimeout(() => {
+        // Process the result after debounce for more stable output
+        let transcript = '';
+        let highestConfidence = 0;
+        
+        // Get latest result
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const confidence = result[0].confidence;
+          
+          // Only accept high confidence results
+          if (confidence >= confidenceThreshold) {
+            if (result.isFinal) {
+              transcript += result[0].transcript;
+            } else if (confidence > highestConfidence) {
+              // For interim results, keep only the highest confidence one
+              highestConfidence = confidence;
+              transcript = result[0].transcript;
             }
-            
-            // Update the last transcript reference
-            lastTranscriptRef.current = transcript;
-            
-            return prevText ? `${prevText} ${transcript}` : transcript;
           }
+        }
+        
+        // Update text state if we have content and it's not too similar to existing text
+        if (transcript.trim()) {
+          // Check for significant difference to avoid small repeated transcriptions
+          const normalizedLast = lastTranscriptRef.current.trim().toLowerCase();
+          const normalizedNew = transcript.trim().toLowerCase();
           
-          // For interim results, only update if it's substantially different
-          if (transcript.trim() === lastTranscriptRef.current.trim()) {
-            return prevText;
+          // Only update if the new transcript is not contained in the previous one
+          // and is substantially different (to avoid small variations)
+          const isDifferentEnough = !normalizedLast.includes(normalizedNew) && 
+                                   !normalizedNew.includes(normalizedLast);
+          
+          if (isDifferentEnough || normalizedNew.length > normalizedLast.length + 10) {
+            setText((prevText) => {
+              // For final results, append with space
+              if (event.results[event.resultIndex].isFinal) {
+                lastTranscriptRef.current = transcript;
+                return prevText ? `${prevText} ${transcript}` : transcript;
+              }
+              
+              // For interim results with high confidence, replace the text
+              if (highestConfidence > 0.8) {
+                lastTranscriptRef.current = transcript;
+                return transcript;
+              }
+              
+              return prevText;
+            });
           }
-          
-          return transcript;
-        });
-      }
-      
-      // Clear any existing timeout to prevent text from disappearing
-      if (textTimeoutRef.current !== null) {
-        window.clearTimeout(textTimeoutRef.current);
-        textTimeoutRef.current = null;
-      }
+        }
+        
+        // Clear any existing timeout to prevent text from disappearing
+        if (textTimeoutRef.current !== null) {
+          window.clearTimeout(textTimeoutRef.current);
+          textTimeoutRef.current = null;
+        }
+      }, 250); // Debounce for more stable results
     };
     
     recognitionInstance.onerror = (event: any) => {
@@ -172,6 +193,9 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       }
       if (textTimeoutRef.current !== null) {
         window.clearTimeout(textTimeoutRef.current);
+      }
+      if (transcriptDebounceRef.current !== null) {
+        window.clearTimeout(transcriptDebounceRef.current);
       }
     };
   }, []);

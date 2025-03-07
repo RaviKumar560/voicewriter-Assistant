@@ -10,7 +10,7 @@ type Message = {
   text: string;
   isRecording: boolean;
   timestamp: number;
-  messageId?: string; // Unique ID for deduplication
+  messageId: string; // Unique ID for deduplication
 };
 
 export function useRealTimeSharing() {
@@ -22,6 +22,7 @@ export function useRealTimeSharing() {
   
   // Use refs to prevent infinite updates in useEffects
   const latestMessageRef = useRef<string>('');
+  const lastBroadcastTimeRef = useRef<number>(0);
   const isRecordingRef = useRef<boolean>(false);
   const sessionChannelRef = useRef<any>(null);
   const processedMessageIds = useRef<Set<string>>(new Set());
@@ -50,11 +51,6 @@ export function useRealTimeSharing() {
       .on('broadcast', { event: 'message' }, (payload) => {
         const newMessage = payload.payload as Message;
         
-        // Generate a messageId if one doesn't exist
-        if (!newMessage.messageId) {
-          newMessage.messageId = `${newMessage.userId}-${newMessage.timestamp}`;
-        }
-        
         // Skip if we've already processed this message
         if (processedMessageIds.current.has(newMessage.messageId)) {
           return;
@@ -63,8 +59,21 @@ export function useRealTimeSharing() {
         // Mark as processed
         processedMessageIds.current.add(newMessage.messageId);
         
-        // Update messages state
-        setMessages(prev => [...prev, newMessage]);
+        // Add message to messages array (using a function to avoid closure issues)
+        setMessages(prev => {
+          // Check if message is already in the array (additional deduplication)
+          const messageExists = prev.some(msg => 
+            msg.messageId === newMessage.messageId || 
+            (msg.userId === newMessage.userId && 
+             msg.timestamp === newMessage.timestamp)
+          );
+          
+          if (messageExists) {
+            return prev;
+          }
+          
+          return [...prev, newMessage];
+        });
         
         // Update connected users
         setConnectedUsers(prev => ({
@@ -221,22 +230,31 @@ export function useRealTimeSharing() {
   const broadcastMessage = useCallback((text: string, isRecording: boolean) => {
     if (!sessionId || !sessionChannelRef.current) return;
     
-    // Only broadcast if text or recording status changed
-    if (text === latestMessageRef.current && isRecording === isRecordingRef.current) {
+    // Check if message content has changed significantly
+    const textChanged = text !== latestMessageRef.current;
+    const recordingStatusChanged = isRecording !== isRecordingRef.current;
+    
+    // Throttle updates to at most 1 per second unless recording status changes
+    const now = Date.now();
+    const shouldThrottle = !recordingStatusChanged && (now - lastBroadcastTimeRef.current < 1000);
+    
+    // Only broadcast if necessary changes and not throttled
+    if ((!textChanged && !recordingStatusChanged) || shouldThrottle) {
       return;
     }
     
-    // Update refs to prevent infinite loop
+    // Update refs
     latestMessageRef.current = text;
     isRecordingRef.current = isRecording;
+    lastBroadcastTimeRef.current = now;
     
-    const messageId = `${userId}-${Date.now()}`;
+    const messageId = `${userId}-${now}`;
     const newMessage: Message = {
       userId,
       userName,
       text,
       isRecording,
-      timestamp: Date.now(),
+      timestamp: now,
       messageId
     };
     
@@ -250,8 +268,22 @@ export function useRealTimeSharing() {
       payload: newMessage
     });
     
-    // Also update our local state
-    setMessages(prev => [...prev, newMessage]);
+    // Also update our local state - using a function to avoid closure issues
+    setMessages(prev => {
+      // Check if message is already in the array (additional deduplication)
+      const messageExists = prev.some(msg => 
+        msg.messageId === messageId || 
+        (msg.userId === userId && 
+         Math.abs(msg.timestamp - now) < 100 && 
+         msg.text === text)
+      );
+      
+      if (messageExists) {
+        return prev;
+      }
+      
+      return [...prev, newMessage];
+    });
     
     // Update the user's recording status
     setConnectedUsers(prev => ({
@@ -261,7 +293,19 @@ export function useRealTimeSharing() {
   }, [userId, userName, sessionId]);
   
   const updateTranscription = useCallback((text: string) => {
-    if (!sessionId || text === latestMessageRef.current) return;
+    if (!sessionId) return;
+    
+    // Only broadcast if text has meaningfully changed
+    if (text === latestMessageRef.current) return;
+    
+    // If the new text is just the old text with a small addition,
+    // make sure we don't send updates too frequently
+    if (text.startsWith(latestMessageRef.current) && 
+        text.length - latestMessageRef.current.length < 5 &&
+        Date.now() - lastBroadcastTimeRef.current < 1000) {
+      return;
+    }
+    
     broadcastMessage(text, isRecordingRef.current);
   }, [broadcastMessage, sessionId]);
   
@@ -269,8 +313,9 @@ export function useRealTimeSharing() {
     if (!sessionId || isRecording === isRecordingRef.current) return;
     
     // Get the latest message text or empty string
-    const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-    const currentText = latestMessage?.userId === userId ? latestMessage.text : '';
+    const latestMessage = messages.length > 0 ? 
+      messages.find(msg => msg.userId === userId) : null;
+    const currentText = latestMessage?.text || '';
     
     broadcastMessage(currentText, isRecording);
   }, [broadcastMessage, messages, userId, sessionId]);

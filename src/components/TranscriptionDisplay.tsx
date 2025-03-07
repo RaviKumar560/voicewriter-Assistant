@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clipboard, Check } from 'lucide-react';
@@ -18,12 +17,18 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = React.useState(false);
+  const prevTextRef = useRef<string>('');
   
   // Auto-scroll to the bottom of the container
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
+  }, [text]);
+
+  // Keep track of previous text to prevent unnecessary updates
+  useEffect(() => {
+    prevTextRef.current = text;
   }, [text]);
   
   const copyToClipboard = () => {
@@ -42,8 +47,12 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (onTextChange) {
-      onTextChange(e.target.value);
+    const newText = e.target.value;
+    
+    // Only call onTextChange if the text has actually changed
+    if (onTextChange && newText !== prevTextRef.current) {
+      onTextChange(newText);
+      prevTextRef.current = newText;
     }
   };
   

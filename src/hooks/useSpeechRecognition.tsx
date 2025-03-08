@@ -21,10 +21,9 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
 
   // Initialize speech recognition on component mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      // @ts-ignore - webkitSpeechRecognition is not in the types
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
+    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'en-US';
@@ -53,13 +52,15 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
         }
       };
 
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error', event.error);
-        if (event.error === 'no-speech') {
+      recognitionRef.current.onerror = (event: Event) => {
+        const error = event as unknown as { error: string };
+        console.error('Speech recognition error', error);
+        
+        if (error.error === 'no-speech') {
           // This is a common error, don't show toast for it
           return;
         }
-        toast.error(`Error: ${event.error}`);
+        toast.error(`Error: ${error.error}`);
         stopRecording();
       };
     } else {

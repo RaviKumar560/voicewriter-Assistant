@@ -153,7 +153,7 @@ const Index = () => {
         <footer className="w-full max-w-xl mx-auto bg-muted/40 rounded-lg p-4 text-center text-sm text-muted-foreground">
           <p className="font-medium mb-1">📢 Share your session ID to collaborate in real-time</p>
           <p>Click the microphone to speak, or edit text directly in the textbox</p>
-          <p className="mt-1 text-xs">Text will stay visible for 30 seconds after you stop speaking</p>
+          <p className="mt-1 text-xs">Text will stay visible until you click the Clear Text button</p>
         </footer>
       </div>
     </div>

@@ -28,14 +28,16 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'en-US';
 
-      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+      recognitionRef.current.onresult = (event: Event) => {
+        // Type assertion to use the SpeechRecognitionEvent interface
+        const speechEvent = event as unknown as SpeechRecognitionEvent;
         let interimTranscript = '';
         let finalTranscript = '';
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
+        for (let i = speechEvent.resultIndex; i < speechEvent.results.length; i++) {
+          const transcript = speechEvent.results[i][0].transcript;
           
-          if (event.results[i].isFinal) {
+          if (speechEvent.results[i].isFinal) {
             finalTranscript += transcript;
           } else {
             interimTranscript += transcript;

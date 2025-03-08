@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clipboard, Check } from 'lucide-react';
@@ -73,18 +72,12 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
             ref={containerRef}
             className="min-h-[200px] max-h-[400px] overflow-y-auto mb-2"
           >
-            {text || isRecording ? (
-              <textarea
-                className="w-full min-h-[160px] bg-transparent resize-none text-lg leading-relaxed focus:outline-none"
-                value={text}
-                onChange={handleTextChange}
-                placeholder={isRecording ? "Listening to your voice..." : "Edit your text here..."}
-              />
-            ) : (
-              <p className="text-muted-foreground text-center italic pt-16">
-                Click the microphone to start speaking
-              </p>
-            )}
+            <textarea
+              className="w-full min-h-[160px] bg-transparent resize-none text-lg leading-relaxed focus:outline-none"
+              value={text}
+              onChange={handleTextChange}
+              placeholder={isRecording ? "Listening to your voice..." : "Edit your text here..."}
+            />
           </div>
           
           {text && (

@@ -18,7 +18,7 @@ interface SpeechRecognitionResult {
   isFinal: boolean;
   length: number;
   item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionResult;
 }
 
 interface SpeechRecognitionAlternative {
@@ -54,7 +54,7 @@ interface SpeechRecognitionConstructor {
 
 declare global {
   interface Window {
-    SpeechRecognition: SpeechRecognitionConstructor;
-    webkitSpeechRecognition: SpeechRecognitionConstructor;
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
   }
 }

@@ -21,52 +21,62 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
 
   // Initialize speech recognition on component mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognitionAPI();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
+    if (typeof window !== 'undefined') {
+      // Check for SpeechRecognition support by testing window object properties
+      const SpeechRecognitionAPI = 
+        // Using 'in' operator is more reliable for TypeScript
+        'SpeechRecognition' in window 
+          ? window['SpeechRecognition' as keyof Window] as unknown as SpeechRecognitionConstructor
+          : 'webkitSpeechRecognition' in window 
+            ? window['webkitSpeechRecognition' as keyof Window] as unknown as SpeechRecognitionConstructor
+            : null;
+            
+      if (SpeechRecognitionAPI) {
+        recognitionRef.current = new SpeechRecognitionAPI();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = 'en-US';
 
-      recognitionRef.current.onresult = (event: Event) => {
-        // Type assertion to use the SpeechRecognitionEvent interface
-        const speechEvent = event as unknown as SpeechRecognitionEvent;
-        let interimTranscript = '';
-        let finalTranscript = '';
+        recognitionRef.current.onresult = (event: Event) => {
+          // Type assertion to use the SpeechRecognitionEvent interface
+          const speechEvent = event as unknown as SpeechRecognitionEvent;
+          let interimTranscript = '';
+          let finalTranscript = '';
 
-        for (let i = speechEvent.resultIndex; i < speechEvent.results.length; i++) {
-          const transcript = speechEvent.results[i][0].transcript;
-          
-          if (speechEvent.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
+          for (let i = speechEvent.resultIndex; i < speechEvent.results.length; i++) {
+            const transcript = speechEvent.results[i][0].transcript;
+            
+            if (speechEvent.results[i].isFinal) {
+              finalTranscript += transcript;
+            } else {
+              interimTranscript += transcript;
+            }
           }
-        }
 
-        if (finalTranscript && !previousTranscriptionsRef.current.has(finalTranscript)) {
-          setText((prevText) => {
-            const newText = prevText ? `${prevText} ${finalTranscript}` : finalTranscript;
-            previousTranscriptionsRef.current.add(finalTranscript);
-            lastTranscriptRef.current = finalTranscript;
-            return newText;
-          });
-        }
-      };
+          if (finalTranscript && !previousTranscriptionsRef.current.has(finalTranscript)) {
+            setText((prevText) => {
+              const newText = prevText ? `${prevText} ${finalTranscript}` : finalTranscript;
+              previousTranscriptionsRef.current.add(finalTranscript);
+              lastTranscriptRef.current = finalTranscript;
+              return newText;
+            });
+          }
+        };
 
-      recognitionRef.current.onerror = (event: Event) => {
-        const error = event as unknown as { error: string };
-        console.error('Speech recognition error', error);
-        
-        if (error.error === 'no-speech') {
-          // This is a common error, don't show toast for it
-          return;
-        }
-        toast.error(`Error: ${error.error}`);
-        stopRecording();
-      };
-    } else {
-      toast.error('Speech recognition is not supported in your browser. Try Chrome or Edge.');
+        recognitionRef.current.onerror = (event: Event) => {
+          const error = event as unknown as { error: string };
+          console.error('Speech recognition error', error);
+          
+          if (error.error === 'no-speech') {
+            // This is a common error, don't show toast for it
+            return;
+          }
+          toast.error(`Error: ${error.error}`);
+          stopRecording();
+        };
+      } else {
+        toast.error('Speech recognition is not supported in your browser. Try Chrome or Edge.');
+      }
     }
 
     return () => {

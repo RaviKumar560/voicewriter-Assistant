@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Share, Users, Copy } from 'lucide-react';
+import { Share, Users, Copy, Key } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ConnectionInterfaceProps {
@@ -26,19 +26,37 @@ const ConnectionInterface: React.FC<ConnectionInterfaceProps> = ({
   const [joinSessionId, setJoinSessionId] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [newUserName, setNewUserName] = useState(userName);
+  const [secretKey, setSecretKey] = useState('');
+  const [showSecretKeyInput, setShowSecretKeyInput] = useState(!sessionId);
+  
+  const CORRECT_SECRET_KEY = 'Ravi560@';
+
+  const validateSecretKey = () => {
+    if (secretKey !== CORRECT_SECRET_KEY) {
+      toast.error('Invalid secret key. Access denied.');
+      return false;
+    }
+    return true;
+  };
 
   const handleCreateSession = () => {
+    if (!validateSecretKey()) return;
+    
     onCreateSession();
+    setShowSecretKeyInput(false);
     toast.success('New session created!');
   };
 
   const handleJoinSession = () => {
+    if (!validateSecretKey()) return;
+    
     if (!joinSessionId.trim()) {
       toast.error('Please enter a session ID');
       return;
     }
     onJoinSession(joinSessionId);
     setIsJoining(false);
+    setShowSecretKeyInput(false);
   };
 
   const handleCopySessionId = () => {
@@ -67,6 +85,24 @@ const ConnectionInterface: React.FC<ConnectionInterfaceProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Secret key input */}
+        {showSecretKeyInput && (
+          <div className="space-y-2 animate-fade-in">
+            <label htmlFor="secretKey" className="text-sm font-medium flex items-center gap-1">
+              <Key className="h-3.5 w-3.5" />
+              Secret Key (Required)
+            </label>
+            <Input
+              id="secretKey"
+              type="password"
+              value={secretKey}
+              onChange={(e) => setSecretKey(e.target.value)}
+              placeholder="Enter the secret key"
+              className="font-mono"
+            />
+          </div>
+        )}
+
         {/* User name input */}
         <div className="space-y-2">
           <label htmlFor="userName" className="text-sm font-medium">Your Display Name</label>

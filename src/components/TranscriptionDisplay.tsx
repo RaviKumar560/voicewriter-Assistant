@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clipboard, Check } from 'lucide-react';
@@ -16,19 +17,12 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = React.useState(false);
-  const prevTextRef = useRef<string>('');
-  const textChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Auto-scroll to the bottom of the container
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [text]);
-
-  // Keep track of previous text to prevent unnecessary updates
-  useEffect(() => {
-    prevTextRef.current = text;
   }, [text]);
   
   const copyToClipboard = () => {
@@ -48,20 +42,10 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
-    
-    // Clear any existing timeout
-    if (textChangeTimeoutRef.current) {
-      clearTimeout(textChangeTimeoutRef.current);
+    // Call onTextChange immediately without debouncing
+    if (onTextChange) {
+      onTextChange(newText);
     }
-    
-    // Debounce text changes to prevent too frequent updates
-    textChangeTimeoutRef.current = setTimeout(() => {
-      // Only call onTextChange if the text has actually changed
-      if (onTextChange && newText !== prevTextRef.current) {
-        onTextChange(newText);
-        prevTextRef.current = newText;
-      }
-    }, 300);
   };
 
   return (

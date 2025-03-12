@@ -33,31 +33,37 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
             
       if (SpeechRecognitionAPI) {
         recognitionRef.current = new SpeechRecognitionAPI();
+        
+        // Performance optimizations
         recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
+        recognitionRef.current.interimResults = false; // Only get final results for better performance
         recognitionRef.current.lang = 'en-US';
+        recognitionRef.current.maxAlternatives = 1; // Limit alternatives for faster processing
 
         recognitionRef.current.onresult = (event: Event) => {
           // Type assertion to use the SpeechRecognitionEvent interface
           const speechEvent = event as unknown as SpeechRecognitionEvent;
-          let interimTranscript = '';
           let finalTranscript = '';
 
+          // Process only from the last result index for better performance
           for (let i = speechEvent.resultIndex; i < speechEvent.results.length; i++) {
             const transcript = speechEvent.results[i][0].transcript;
             
             if (speechEvent.results[i].isFinal) {
               finalTranscript += transcript;
-            } else {
-              interimTranscript += transcript;
             }
           }
 
           if (finalTranscript && !previousTranscriptionsRef.current.has(finalTranscript)) {
+            // Use functional update to avoid stale closure issues
             setText((prevText) => {
+              // Add a space if needed and append new text
               const newText = prevText ? `${prevText} ${finalTranscript}` : finalTranscript;
+              
+              // Track processed transcripts to avoid duplicates
               previousTranscriptionsRef.current.add(finalTranscript);
               lastTranscriptRef.current = finalTranscript;
+              
               return newText;
             });
           }
@@ -109,6 +115,11 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       return;
     }
 
+    // Clear previous transcriptions when starting a new recording session
+    if (!isRecording) {
+      previousTranscriptionsRef.current.clear();
+    }
+
     try {
       recognitionRef.current.start();
       setIsRecording(true);
@@ -125,7 +136,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
         setIsRecording(false);
       }
     }
-  }, []);
+  }, [isRecording]);
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {

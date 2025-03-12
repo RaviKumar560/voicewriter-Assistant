@@ -18,7 +18,7 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = React.useState(false);
   
-  // Auto-scroll to the bottom of the container
+  // Auto-scroll to the bottom of the container when text changes
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
@@ -41,10 +41,9 @@ const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newText = e.target.value;
-    // Call onTextChange immediately without debouncing
+    // Immediately call the onChange handler without any delay
     if (onTextChange) {
-      onTextChange(newText);
+      onTextChange(e.target.value);
     }
   };
 

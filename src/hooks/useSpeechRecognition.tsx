@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
@@ -35,7 +34,12 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
         recognitionRef.current = new SpeechRecognitionAPI();
         recognitionRef.current.continuous = true;
         recognitionRef.current.interimResults = true;
+        
+        // Set the language to English and optimize for responsive recognition
         recognitionRef.current.lang = 'en-US';
+        
+        // Decrease maxAlternatives to improve speed
+        recognitionRef.current.maxAlternatives = 1;
 
         recognitionRef.current.onresult = (event: Event) => {
           // Type assertion to use the SpeechRecognitionEvent interface
@@ -53,9 +57,22 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
             }
           }
 
+          // Update text immediately with interim results for better responsiveness
+          if (interimTranscript) {
+            setText((prevText) => {
+              const newText = prevText ? `${prevText} ${interimTranscript}` : interimTranscript;
+              return newText;
+            });
+          }
+
           if (finalTranscript && !previousTranscriptionsRef.current.has(finalTranscript)) {
             setText((prevText) => {
-              const newText = prevText ? `${prevText} ${finalTranscript}` : finalTranscript;
+              // If we already showed the interim transcript, replace that portion with the final
+              // Otherwise, append as normal
+              const newText = prevText.includes(interimTranscript) 
+                ? prevText.replace(interimTranscript, finalTranscript)
+                : prevText ? `${prevText} ${finalTranscript}` : finalTranscript;
+                
               previousTranscriptionsRef.current.add(finalTranscript);
               lastTranscriptRef.current = finalTranscript;
               return newText;
@@ -63,6 +80,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
           }
         };
 
+        // Add more error handling with specific error codes
         recognitionRef.current.onerror = (event: Event) => {
           const error = event as unknown as { error: string };
           console.error('Speech recognition error', error);
@@ -71,8 +89,33 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
             // This is a common error, don't show toast for it
             return;
           }
+          
+          if (error.error === 'audio-capture') {
+            toast.error('Could not access microphone. Check permissions.');
+            stopRecording();
+            return;
+          }
+          
+          if (error.error === 'network') {
+            toast.error('Network error occurred. Check your connection.');
+            stopRecording();
+            return;
+          }
+          
           toast.error(`Error: ${error.error}`);
           stopRecording();
+        };
+        
+        // Restart recognition if it ends unexpectedly while still recording
+        recognitionRef.current.onend = () => {
+          if (isRecording && recognitionRef.current) {
+            console.log('Recognition ended unexpectedly, restarting...');
+            try {
+              recognitionRef.current.start();
+            } catch (e) {
+              console.error('Failed to restart recognition', e);
+            }
+          }
         };
       } else {
         toast.error('Speech recognition is not supported in your browser. Try Chrome or Edge.');
@@ -88,7 +131,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
         }
       }
     };
-  }, []);
+  }, [isRecording]);
 
   const startRecording = useCallback(() => {
     if (!recognitionRef.current) {
@@ -102,8 +145,15 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       toast.success('Listening...');
     } catch (error) {
       console.error('Error starting recording:', error);
-      toast.error('Failed to start recording. Please try again.');
-      setIsRecording(false);
+      
+      // Handle already started error specifically
+      if (error instanceof DOMException && error.name === 'InvalidStateError') {
+        // Recognition already started, just update UI state
+        setIsRecording(true);
+      } else {
+        toast.error('Failed to start recording. Please try again.');
+        setIsRecording(false);
+      }
     }
   }, []);
 
@@ -115,6 +165,8 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
         toast.info('Stopped listening');
       } catch (error) {
         console.error('Error stopping recording:', error);
+        // Force state update even if error occurs
+        setIsRecording(false);
       }
     }
   }, []);

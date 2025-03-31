@@ -1,5 +1,5 @@
 # Voice-Writer-Assistent made by me by Using AI
-# we and also use this communicate whit other 
+we can also use this application to communicate with other by sharing the appling and Passcode
 
 ## Project info
 
